@@ -1,4 +1,4 @@
-name: Auto Merge PR (discard changes)
+name: Fake Merge PR (no file changes)
 
 permissions:
   contents: write
@@ -9,10 +9,10 @@ on:
     types: [opened, ready_for_review]
 
 jobs:
-  merge-pr:
+  fake-merge:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout base branch
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
@@ -24,19 +24,11 @@ jobs:
 
       - name: Create empty merge commit
         run: |
-          PR_BRANCH=${{ github.event.pull_request.head.ref }}
-          git fetch origin $PR_BRANCH
-          # Merge PR branch but ignore all changes
-          git merge --allow-unrelated-histories --no-commit --no-ff FETCH_HEAD
-          git reset --hard HEAD  # discard all changes
-          git commit --allow-empty -m "Merge PR #${{ github.event.pull_request.number }} (discard changes)"
+          git commit --allow-empty -m "Fake merge PR #${{ github.event.pull_request.number }} (discard changes)"
           git push origin HEAD:${{ github.event.pull_request.base.ref }}
 
-      - name: Close PR on GitHub
+      - name: Close PR
         env:
           GH_TOKEN: ${{ secrets.AUTO_MERGE }}
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }} \
-            --merge \
-            --delete-branch
+          gh pr close ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --delete-branch
