@@ -1,4 +1,4 @@
-name: Auto Merge PR
+name: Auto Merge PR (discard changes)
 
 permissions:
   contents: write
@@ -12,11 +12,30 @@ jobs:
   merge-pr:
     runs-on: ubuntu-latest
     steps:
-      - name: Merge PR automatically
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Configure Git
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create empty merge commit
+        run: |
+          PR_BRANCH=${{ github.event.pull_request.head.ref }}
+          git fetch origin $PR_BRANCH
+          # Merge PR branch but ignore all changes
+          git merge --allow-unrelated-histories --no-commit --no-ff FETCH_HEAD
+          git reset --hard HEAD  # discard all changes
+          git commit --allow-empty -m "Merge PR #${{ github.event.pull_request.number }} (discard changes)"
+          git push origin HEAD:${{ github.event.pull_request.base.ref }}
+
+      - name: Close PR on GitHub
         env:
           GH_TOKEN: ${{ secrets.AUTO_MERGE }}
         run: |
-          echo "Merging PR #${{ github.event.pull_request.number }} automatically"
           gh pr merge ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --merge \
